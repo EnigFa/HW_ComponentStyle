@@ -131,3 +131,25 @@
 .cart-button:hover {
   background-color: #c40033;
 }
+.top-info {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.top-info p {
+  margin: 5px 0;
+  font-size: 18px;
+}
+
+.favorite-button {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  color: #8aa9d6;
+  cursor: pointer;
+  padding: 0;
+}
+
+.favorite-button:hover {
+  color: #e6003d;
+}

@@ -1,7 +1,14 @@
 import CartButton from "./CartButton";
-import type {ProductType} from "../types/ProductType";
+import type { ProductType } from "../types/ProductType";
 
-function ProductCard(prop: { product: ProductType }) {
+type ProductCardPropsType = {
+    product: ProductType;
+    onAddToCart: (product: ProductType) => void;
+    onToggleFavorite: (product: ProductType) => void;
+    isFavorite: boolean;
+};
+
+function ProductCard(prop: ProductCardPropsType) {
     const {
         title,
         image,
@@ -11,16 +18,18 @@ function ProductCard(prop: { product: ProductType }) {
         monoPercent,
         rating,
         reviewsCount,
-        isFavorite,
         hasAction
     } = prop.product;
 
     return (
         <div className="product-card">
             <div className="favorite-block">
-                <span className="favorite-icon">
-                    {isFavorite ? "♥" : "♡"}
-                </span>
+                <button
+                    className="favorite-button"
+                    onClick={() => prop.onToggleFavorite(prop.product)}
+                >
+                    {prop.isFavorite ? "♥" : "♡"}
+                </button>
             </div>
 
             <img src={image} alt={title} className="product-image" />
@@ -29,7 +38,7 @@ function ProductCard(prop: { product: ProductType }) {
 
             <div className="badges">
                 {monoPercent > 0 && (
-                    <span className="badge mono-badge">{monoPercent}% МОНО</span>
+                    <span className="badge mono-badge">{monoPercent}% моно</span>
                 )}
 
                 {discountPercent > 0 && (
@@ -52,7 +61,7 @@ function ProductCard(prop: { product: ProductType }) {
                     <p className="price">{price} ₴</p>
                 </div>
 
-                <CartButton />
+                <CartButton onClick={() => prop.onAddToCart(prop.product)} />
             </div>
         </div>
     );
