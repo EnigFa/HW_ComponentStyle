@@ -1,37 +1,16 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import ProductCard from "./components/ProductCard";
+import Search from "./components/Search";
+import { ProductProvider, useProductContext } from "./context/ProductContext";
 import type { ProductType } from "./types/ProductType";
 import type { CartItemType } from "./types/CartItemType";
 
-function App() {
-  const product1: ProductType = {
-    id: 1,
-    title: "Навушники Esperanza EH187K Black",
-    image: "https://i.allo.ua/media/catalog/product/cache/3/small_image/212x184/9df78eab33525d08d6e5fb8d27136e95/e/h/eh187k_black.webp",
-    price: 229,
-    oldPrice: 0,
-    discountPercent: 5,
-    monoPercent: 5,
-    rating: 2,
-    reviewsCount: 1,
-    isFavorite: false,
-    hasAction: true
-  };
-
-  const product2: ProductType = {
-    id: 2,
-    title: "Навушники Canyon GTWS2 Orange",
-    image: "https://i.allo.ua/media/catalog/product/cache/3/small_image/212x184/9df78eab33525d08d6e5fb8d27136e95/c/n/cnd-gtws2o_.webp",
-    price: 549,
-    oldPrice: 899,
-    discountPercent: 39,
-    monoPercent: 0,
-    rating: 4,
-    reviewsCount: 24,
-    isFavorite: false,
-    hasAction: false
-  };
+function AppContent() {
+  const {
+    foundProducts,
+    hasSearched
+  } = useProductContext();
 
   const [favorites, setFavorites] = useState<ProductType[]>([]);
   const [cart, setCart] = useState<CartItemType[]>([]);
@@ -89,11 +68,11 @@ function App() {
     }
   };
 
-  const products: ProductType[] = [product1, product2];
-
   return (
       <div className="app">
         <h1>Картки товарів</h1>
+
+        <Search />
 
         <div className="top-info">
           <p>Улюблені товари: {favorites.length}</p>
@@ -104,18 +83,32 @@ function App() {
           </p>
         </div>
 
-        <div className="products-list">
-          {products.map((product) => (
-              <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={addToCart}
-                  onToggleFavorite={toggleFavorite}
-                  isFavorite={favorites.some((item) => item.id === product.id)}
-              />
-          ))}
-        </div>
+        {hasSearched && foundProducts.length === 0 ? (
+            <p className="empty-message">
+              Нічого не знайдено
+            </p>
+        ) : (
+            <div className="products-list">
+              {foundProducts.map((product) => (
+                  <ProductCard
+                      key={product.id}
+                      product={product}
+                      onAddToCart={addToCart}
+                      onToggleFavorite={toggleFavorite}
+                      isFavorite={favorites.some((item) => item.id === product.id)}
+                  />
+              ))}
+            </div>
+        )}
       </div>
+  );
+}
+
+function App() {
+  return (
+      <ProductProvider>
+        <AppContent />
+      </ProductProvider>
   );
 }
 
