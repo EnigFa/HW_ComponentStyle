@@ -12,7 +12,8 @@ function Category({
                   }: CategoryProps) {
     const [isOpen, setIsOpen] = useState(false);
 
-    const hasSubCategories = category.subCategories.length > 0;
+    const subCategories = category.subCategories || [];
+    const hasSubCategories = subCategories.length > 0;
 
     const handleCategoryClick = () => {
         if (hasSubCategories) {
@@ -64,7 +65,7 @@ function Category({
 
             {isOpen && hasSubCategories && (
                 <div className="subcategories-list">
-                    {category.subCategories.map((subCategory) => (
+                    {subCategories.map((subCategory) => (
                         <Category
                             key={subCategory.id}
                             category={subCategory}

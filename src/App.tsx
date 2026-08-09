@@ -27,6 +27,18 @@ function AppContent() {
   >([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const categoriesPerPage = 6;
+  const totalPages = Math.ceil(categories.length / categoriesPerPage);
+
+  const firstCategoryIndex = (currentPage - 1) * categoriesPerPage;
+  const lastCategoryIndex = firstCategoryIndex + categoriesPerPage;
+
+  const currentCategories = categories.slice(
+      firstCategoryIndex,
+      lastCategoryIndex
+  );
 
   useEffect(() => {
     const favoritesFromStorage = localStorage.getItem("favorites");
@@ -61,6 +73,12 @@ function AppContent() {
 
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const addToCart = (product: CategoryProductType) => {
     const foundProduct = cart.find(
@@ -183,7 +201,7 @@ function AppContent() {
           )}
 
           <div className="categories-list">
-            {categories.map((category) => (
+            {currentCategories.map((category) => (
                 <Category
                     key={category.id}
                     category={category}
@@ -191,6 +209,44 @@ function AppContent() {
                 />
             ))}
           </div>
+
+          {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                    className="pagination-button"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                >
+                  Попередня
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const pageNumber = index + 1;
+
+                  return (
+                      <button
+                          key={pageNumber}
+                          className={
+                            currentPage === pageNumber
+                                ? "pagination-button active"
+                                : "pagination-button"
+                          }
+                          onClick={() => setCurrentPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                  );
+                })}
+
+                <button
+                    className="pagination-button"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                >
+                  Наступна
+                </button>
+              </div>
+          )}
 
           {selectedCategoryName && (
               <CategoryProducts
