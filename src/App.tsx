@@ -4,21 +4,28 @@ import ProductCard from "./components/ProductCard";
 import Search from "./components/Search";
 import Category from "./components/Category";
 import CategoryForm from "./components/CategoryForm";
+import CategoryProducts from "./components/CategoryProducts";
 import { ProductProvider, useProductContext } from "./context/ProductContext";
 import { getCategories } from "./services/categoryService";
-import type { ProductType } from "./types/ProductType";
 import type { CartItemType } from "./types/CartItemType";
 import type { CategoryType } from "./types/CategoryType";
+import type { CategoryProductType } from "./types/CategoryProductType";
 
 function AppContent() {
   const {
+    products,
     foundProducts,
-    hasSearched
+    hasSearched,
+    productError
   } = useProductContext();
 
-  const [favorites, setFavorites] = useState<ProductType[]>([]);
+  const [favorites, setFavorites] = useState<CategoryProductType[]>([]);
   const [cart, setCart] = useState<CartItemType[]>([]);
   const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [selectedCategoryProducts, setSelectedCategoryProducts] = useState<
+      CategoryProductType[]
+  >([]);
+  const [selectedCategoryName, setSelectedCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState("");
 
   useEffect(() => {
@@ -55,8 +62,10 @@ function AppContent() {
     loadCategories();
   }, []);
 
-  const addToCart = (product: ProductType) => {
-    const foundProduct = cart.find((item) => item.product.id === product.id);
+  const addToCart = (product: CategoryProductType) => {
+    const foundProduct = cart.find(
+        (item) => item.product.id === product.id
+    );
 
     if (foundProduct) {
       const updatedCart = cart.map((item) => {
@@ -72,15 +81,26 @@ function AppContent() {
 
       setCart(updatedCart);
     } else {
-      setCart([...cart, { product: product, quantity: 1 }]);
+      setCart([
+        ...cart,
+        {
+          product: product,
+          quantity: 1
+        }
+      ]);
     }
   };
 
-  const toggleFavorite = (product: ProductType) => {
-    const foundProduct = favorites.find((item) => item.id === product.id);
+  const toggleFavorite = (product: CategoryProductType) => {
+    const foundProduct = favorites.find(
+        (item) => item.id === product.id
+    );
 
     if (foundProduct) {
-      const updatedFavorites = favorites.filter((item) => item.id !== product.id);
+      const updatedFavorites = favorites.filter(
+          (item) => item.id !== product.id
+      );
+
       setFavorites(updatedFavorites);
     } else {
       setFavorites([...favorites, product]);
@@ -88,12 +108,27 @@ function AppContent() {
   };
 
   const addCategoryToList = (category: CategoryType) => {
-    setCategories([...categories, category]);
+    setCategories([
+      ...categories,
+      {
+        ...category,
+        subCategories: category.subCategories || []
+      }
+    ]);
+  };
+
+  const selectCategory = (category: CategoryType) => {
+    const selectedProducts = products.filter(
+        (product) => product.categoryId === category.id
+    );
+
+    setSelectedCategoryName(category.name);
+    setSelectedCategoryProducts(selectedProducts);
   };
 
   return (
       <div className="app">
-        <h1>Картки товарів</h1>
+        <h1>Магазин товарів</h1>
 
         <Search />
 
@@ -104,22 +139,36 @@ function AppContent() {
           </p>
         </div>
 
-        {hasSearched && foundProducts.length === 0 ? (
+        {productError && (
+            <p className="error-message">
+              {productError}
+            </p>
+        )}
+
+        {hasSearched && foundProducts.length === 0 && (
             <p className="empty-message">
               Нічого не знайдено
             </p>
-        ) : (
-            <div className="products-list">
-              {foundProducts.map((product) => (
-                  <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={addToCart}
-                      onToggleFavorite={toggleFavorite}
-                      isFavorite={favorites.some((item) => item.id === product.id)}
-                  />
-              ))}
-            </div>
+        )}
+
+        {hasSearched && foundProducts.length > 0 && (
+            <section className="search-results">
+              <h2>Результати пошуку</h2>
+
+              <div className="products-list">
+                {foundProducts.map((product) => (
+                    <ProductCard
+                        key={product.id}
+                        product={product}
+                        onAddToCart={addToCart}
+                        onToggleFavorite={toggleFavorite}
+                        isFavorite={favorites.some(
+                            (item) => item.id === product.id
+                        )}
+                    />
+                ))}
+              </div>
+            </section>
         )}
 
         <section className="categories-section">
@@ -138,9 +187,20 @@ function AppContent() {
                 <Category
                     key={category.id}
                     category={category}
+                    onSelectCategory={selectCategory}
                 />
             ))}
           </div>
+
+          {selectedCategoryName && (
+              <CategoryProducts
+                  categoryName={selectedCategoryName}
+                  products={selectedCategoryProducts}
+                  onAddToCart={addToCart}
+                  onToggleFavorite={toggleFavorite}
+                  favorites={favorites}
+              />
+          )}
         </section>
       </div>
   );

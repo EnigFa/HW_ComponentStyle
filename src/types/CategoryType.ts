@@ -5,6 +5,7 @@ export type CategoryType = {
     url: string;
     isActive: boolean;
     parentId: number | null;
+    subCategories: CategoryType[];
 };
 
 export type CategoryCreateType = {

@@ -1,6 +1,6 @@
-import type { ProductType } from "./ProductType";
+import type { CategoryProductType } from "./CategoryProductType";
 
 export type CartItemType = {
-    product: ProductType;
+    product: CategoryProductType;
     quantity: number;
 };

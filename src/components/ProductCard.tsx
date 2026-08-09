@@ -1,25 +1,24 @@
 import CartButton from "./CartButton";
-import type { ProductType } from "../types/ProductType";
+import type { CategoryProductType } from "../types/CategoryProductType";
 
 type ProductCardPropsType = {
-    product: ProductType;
-    onAddToCart: (product: ProductType) => void;
-    onToggleFavorite: (product: ProductType) => void;
+    product: CategoryProductType;
+    onAddToCart: (product: CategoryProductType) => void;
+    onToggleFavorite: (product: CategoryProductType) => void;
     isFavorite: boolean;
 };
 
 function ProductCard(prop: ProductCardPropsType) {
     const {
-        title,
-        image,
+        name,
+        description,
         price,
-        oldPrice,
-        discountPercent,
-        monoPercent,
-        rating,
-        reviewsCount,
-        hasAction
+        stockQty,
+        isActive,
+        images
     } = prop.product;
+
+    const imageUrl = images[0]?.url;
 
     return (
         <div className="product-card">
@@ -32,36 +31,44 @@ function ProductCard(prop: ProductCardPropsType) {
                 </button>
             </div>
 
-            <img src={image} alt={title} className="product-image" />
-
-            <h3 className="product-title">{title}</h3>
-
-            <div className="badges">
-                {monoPercent > 0 && (
-                    <span className="badge mono-badge">{monoPercent}% моно</span>
-                )}
-
-                {discountPercent > 0 && (
-                    <span className="badge discount-badge">{discountPercent}% знижка</span>
-                )}
-
-                {hasAction && (
-                    <span className="badge action-badge">Акція</span>
+            <div className="product-image-wrapper">
+                {imageUrl ? (
+                    <img
+                        src={imageUrl}
+                        alt={name}
+                        className="product-image"
+                    />
+                ) : (
+                    <div className="no-image">
+                        Немає зображення
+                    </div>
                 )}
             </div>
 
-            <div className="rating-block">
-                <span>{"★".repeat(rating)}</span>
-                <span className="reviews-count">💬 {reviewsCount}</span>
+            <h3 className="product-title">{name}</h3>
+
+            {description && (
+                <p className="product-description">
+                    {description}
+                </p>
+            )}
+
+            <div className="product-info">
+                <span className={isActive ? "active-status" : "inactive-status"}>
+                    {isActive ? "Є в продажу" : "Неактивний"}
+                </span>
+
+                <span className="stock-info">
+                    Залишок: {stockQty}
+                </span>
             </div>
 
             <div className="price-block">
-                <div>
-                    {oldPrice > 0 && <p className="old-price">{oldPrice} ₴</p>}
-                    <p className="price">{price} ₴</p>
-                </div>
+                <p className="price">{price} ₴</p>
 
-                <CartButton onClick={() => prop.onAddToCart(prop.product)} />
+                <CartButton
+                    onClick={() => prop.onAddToCart(prop.product)}
+                />
             </div>
         </div>
     );
