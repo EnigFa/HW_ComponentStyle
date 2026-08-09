@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import ProductCard from "./components/ProductCard";
 import Search from "./components/Search";
+import Category from "./components/Category";
+import CategoryForm from "./components/CategoryForm";
 import { ProductProvider, useProductContext } from "./context/ProductContext";
+import { getCategories } from "./services/categoryService";
 import type { ProductType } from "./types/ProductType";
 import type { CartItemType } from "./types/CartItemType";
+import type { CategoryType } from "./types/CategoryType";
 
 function AppContent() {
   const {
@@ -14,6 +18,8 @@ function AppContent() {
 
   const [favorites, setFavorites] = useState<ProductType[]>([]);
   const [cart, setCart] = useState<CartItemType[]>([]);
+  const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [categoryError, setCategoryError] = useState("");
 
   useEffect(() => {
     const favoritesFromStorage = localStorage.getItem("favorites");
@@ -35,6 +41,19 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const loadedCategories = await getCategories();
+        setCategories(loadedCategories);
+      } catch {
+        setCategoryError("Не вдалося завантажити категорії");
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   const addToCart = (product: ProductType) => {
     const foundProduct = cart.find((item) => item.product.id === product.id);
@@ -68,6 +87,10 @@ function AppContent() {
     }
   };
 
+  const addCategoryToList = (category: CategoryType) => {
+    setCategories([...categories, category]);
+  };
+
   return (
       <div className="app">
         <h1>Картки товарів</h1>
@@ -77,9 +100,7 @@ function AppContent() {
         <div className="top-info">
           <p>Улюблені товари: {favorites.length}</p>
           <p>
-            Кошик: {
-            cart.reduce((sum, item) => sum + item.quantity, 0)
-          }
+            Кошик: {cart.reduce((sum, item) => sum + item.quantity, 0)}
           </p>
         </div>
 
@@ -100,6 +121,27 @@ function AppContent() {
               ))}
             </div>
         )}
+
+        <section className="categories-section">
+          <CategoryForm onCategoryCreated={addCategoryToList} />
+
+          <h2>Категорії</h2>
+
+          {categoryError && (
+              <p className="error-message">
+                {categoryError}
+              </p>
+          )}
+
+          <div className="categories-list">
+            {categories.map((category) => (
+                <Category
+                    key={category.id}
+                    category={category}
+                />
+            ))}
+          </div>
+        </section>
       </div>
   );
 }
