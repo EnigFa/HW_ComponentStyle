@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useAuthContext } from "../context/useAuthContext";
 
-function RegisterForm() {
+type RegisterFormPropsType = {
+    onSuccess?: () => void;
+};
+
+function RegisterForm({ onSuccess }: RegisterFormPropsType) {
     const { register } = useAuthContext();
 
     const [email, setEmail] = useState("");
@@ -28,6 +32,7 @@ function RegisterForm() {
             setPassword("");
             setRepeatPassword("");
             setMessage("Реєстрація успішна");
+            onSuccess?.();
         } catch {
             setError("Не вдалося зареєструвати користувача");
         }

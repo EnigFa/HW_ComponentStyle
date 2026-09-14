@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useAuthContext } from "../context/useAuthContext";
 
-function LoginForm() {
+type LoginFormPropsType = {
+    onSuccess?: () => void;
+};
+
+function LoginForm({ onSuccess }: LoginFormPropsType) {
     const { login } = useAuthContext();
 
     const [email, setEmail] = useState("");
@@ -18,6 +22,7 @@ function LoginForm() {
 
             setEmail("");
             setPassword("");
+            onSuccess?.();
         } catch {
             setError("Невірний email або пароль");
         }
