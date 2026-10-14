@@ -3,72 +3,69 @@ import type { CategoryType } from "../types/CategoryType";
 
 type CategoryProps = {
     category: CategoryType;
-    onSelectCategory?: (category: CategoryType) => void;
+    selectedId: number | null;
+    onSelectCategory: (category: CategoryType) => void;
 };
 
 function Category({
-                      category,
-                      onSelectCategory
-                  }: CategoryProps) {
+    category,
+    selectedId,
+    onSelectCategory
+}: CategoryProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     const subCategories = category.subCategories || [];
     const hasSubCategories = subCategories.length > 0;
-
-    const handleCategoryClick = () => {
-        if (hasSubCategories) {
-            setIsOpen(!isOpen);
-        } else if (onSelectCategory) {
-            onSelectCategory(category);
-        }
-    };
+    const isSelected = selectedId === category.id;
 
     return (
-        <div className="category-tree-item">
+        <div className="catalog-item">
             <div
-                className="category-card"
-                onClick={handleCategoryClick}
+                className={
+                    isSelected
+                        ? "catalog-row catalog-row--active"
+                        : "catalog-row"
+                }
             >
+                {hasSubCategories ? (
+                    <button
+                        type="button"
+                        className="catalog-toggle"
+                        onClick={() => setIsOpen(!isOpen)}
+                        aria-label={isOpen ? "Згорнути" : "Розгорнути"}
+                    >
+                        {isOpen ? "▾" : "▸"}
+                    </button>
+                ) : (
+                    <span className="catalog-toggle catalog-toggle--empty"></span>
+                )}
+
+                {category.url ? (
+                    <img
+                        src={category.url}
+                        alt=""
+                        className="catalog-thumb"
+                    />
+                ) : (
+                    <span className="catalog-thumb catalog-thumb--empty"></span>
+                )}
+
                 <button
                     type="button"
-                    className="category-name-button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        handleCategoryClick();
-                    }}
+                    className="catalog-name"
+                    onClick={() => onSelectCategory(category)}
                 >
-                    {hasSubCategories && (
-                        <span className="category-arrow">
-                            {isOpen ? "▼" : "▶"}
-                        </span>
-                    )}
-
                     {category.name}
                 </button>
-
-                <p>
-                    <strong>Slug:</strong> {category.slug}
-                </p>
-
-                <p>
-                    <strong>URL:</strong>{" "}
-                    {category.url || "Не вказано"}
-                </p>
-
-                <p>
-                    <strong>Статус:</strong>{" "}
-                    {category.isActive
-                        ? "Активна"
-                        : "Неактивна"}
-                </p>
             </div>
 
             {isOpen && hasSubCategories && (
-                <div className="subcategories-list">
+                <div className="catalog-children">
                     {subCategories.map((subCategory) => (
                         <Category
                             key={subCategory.id}
                             category={subCategory}
+                            selectedId={selectedId}
                             onSelectCategory={onSelectCategory}
                         />
                     ))}

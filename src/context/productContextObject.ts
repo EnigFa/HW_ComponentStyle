@@ -7,6 +7,8 @@ type ProductContextType = {
     searchValue: string;
     setSearchValue: (value: string) => void;
     searchProducts: () => void;
+    clearSearch: () => void;
+    reloadProducts: () => Promise<CategoryProductType[]>;
     hasSearched: boolean;
     productError: string;
 };

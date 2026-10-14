@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { AuthContext } from "./authContextInstance";
-import { loginUser, registerUser } from "../services/authService";
+import { getProfile, loginUser, registerUser } from "../services/authService";
 
 type AuthProviderPropsType = {
     children: ReactNode;
@@ -30,9 +30,28 @@ const getSavedSession = () => {
 
 export function AuthProvider({ children }: AuthProviderPropsType) {
     const [email, setEmail] = useState(() => getSavedSession().email);
+    const [role, setRole] = useState("");
     const [isAuthenticated, setIsAuthenticated] = useState(
         () => getSavedSession().isAuthenticated
     );
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
+        getProfile()
+            .then((profile) => {
+                if (profile.email) {
+                    setEmail(profile.email);
+                }
+
+                setRole(profile.role);
+            })
+            .catch(() => {
+                setRole("");
+            });
+    }, [isAuthenticated]);
 
     const saveSession = (
         userEmail: string,
@@ -53,14 +72,14 @@ export function AuthProvider({ children }: AuthProviderPropsType) {
     const register = async (userEmail: string, password: string) => {
         const result = await registerUser(userEmail, password);
 
-        saveSession(result.user.email, result.token);
+        saveSession(result.user?.email ?? userEmail, result.token, result.refresh_token);
     };
 
     const login = async (userEmail: string, password: string) => {
         const result = await loginUser(userEmail, password);
 
         saveSession(
-            result.user.email,
+            result.user?.email ?? userEmail,
             result.token,
             result.refresh_token
         );
@@ -72,6 +91,7 @@ export function AuthProvider({ children }: AuthProviderPropsType) {
         localStorage.removeItem(USER_EMAIL_KEY);
 
         setEmail("");
+        setRole("");
         setIsAuthenticated(false);
     };
 
@@ -79,6 +99,7 @@ export function AuthProvider({ children }: AuthProviderPropsType) {
         <AuthContext.Provider
             value={{
                 email,
+                role,
                 isAuthenticated,
                 register,
                 login,

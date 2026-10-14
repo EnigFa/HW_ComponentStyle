@@ -1,10 +1,12 @@
+import type { MouseEvent } from "react";
+
 type CartButtonPropsType = {
-    onClick: () => void;
+    onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
 function CartButton(prop: CartButtonPropsType) {
     return (
-        <button className="cart-button" onClick={prop.onClick}>
+        <button className="cart-button" type="button" onClick={prop.onClick}>
             🛒
         </button>
     );

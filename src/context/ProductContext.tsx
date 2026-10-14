@@ -33,12 +33,41 @@ export function ProductProvider(prop: ProductProviderPropsType) {
     const searchProducts = () => {
         const searchText = searchValue.toLowerCase().trim();
 
+        if (!searchText) {
+            setFoundProducts(products);
+            setHasSearched(false);
+            return;
+        }
+
         const filteredProducts = products.filter((product) => {
             return product.name.toLowerCase().includes(searchText);
         });
 
         setFoundProducts(filteredProducts);
         setHasSearched(true);
+    };
+
+    const clearSearch = () => {
+        setSearchValue("");
+        setFoundProducts(products);
+        setHasSearched(false);
+    };
+
+    const reloadProducts = async () => {
+        const loadedProducts = await getProducts();
+        const searchText = searchValue.toLowerCase().trim();
+
+        setProducts(loadedProducts);
+        setProductError("");
+        setFoundProducts(
+            searchText
+                ? loadedProducts.filter((product) =>
+                    product.name.toLowerCase().includes(searchText)
+                )
+                : loadedProducts
+        );
+
+        return loadedProducts;
     };
 
     return (
@@ -49,6 +78,8 @@ export function ProductProvider(prop: ProductProviderPropsType) {
                 searchValue,
                 setSearchValue,
                 searchProducts,
+                clearSearch,
+                reloadProducts,
                 hasSearched,
                 productError
             }}

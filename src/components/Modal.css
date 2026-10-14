@@ -1,0 +1,53 @@
+.background {
+  background: rgba(26, 20, 16, 0.55);
+  height: 100%;
+  width: 100%;
+  left: 0;
+  top: 0;
+  position: fixed;
+  z-index: 40;
+}
+
+.modal {
+  animation: slide-in 0.18s ease-out;
+  background: #fffaf5;
+  border-radius: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 460px;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  position: fixed;
+  top: 48px;
+  padding: 28px 24px 24px;
+  width: calc(100% - 32px);
+  z-index: 41;
+  box-shadow: 0 24px 60px rgba(26, 20, 16, 0.24);
+}
+
+.modal--wide {
+  max-width: 860px;
+}
+
+.modal__close {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 28px;
+  line-height: 1;
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  color: #8a7b6d;
+}
+
+@keyframes slide-in {
+  0% {
+    transform: translateX(-50%) translateY(-16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}

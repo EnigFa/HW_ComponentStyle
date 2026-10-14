@@ -5,7 +5,7 @@ export type AuthUserType = {
 };
 
 export type AuthResponseType = {
-    user: AuthUserType;
+    user?: AuthUserType;
     token: string;
-    refresh_token: string;
+    refresh_token?: string;
 };

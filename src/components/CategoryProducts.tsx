@@ -6,6 +6,7 @@ type CategoryProductsProps = {
     products: CategoryProductType[];
     onAddToCart: (product: CategoryProductType) => void;
     onToggleFavorite: (product: CategoryProductType) => void;
+    onOpen: (product: CategoryProductType) => void;
     favorites: CategoryProductType[];
 };
 
@@ -14,6 +15,7 @@ function CategoryProducts({
                               products,
                               onAddToCart,
                               onToggleFavorite,
+                              onOpen,
                               favorites
                           }: CategoryProductsProps) {
     return (
@@ -32,6 +34,7 @@ function CategoryProducts({
                             product={product}
                             onAddToCart={onAddToCart}
                             onToggleFavorite={onToggleFavorite}
+                            onOpen={onOpen}
                             isFavorite={favorites.some(
                                 (item) => item.id === product.id
                             )}

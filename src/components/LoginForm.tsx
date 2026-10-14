@@ -23,8 +23,12 @@ function LoginForm({ onSuccess }: LoginFormPropsType) {
             setEmail("");
             setPassword("");
             onSuccess?.();
-        } catch {
-            setError("Невірний email або пароль");
+        } catch (caught) {
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Невірний email або пароль"
+            );
         }
     };
 

@@ -1,112 +1,131 @@
-import { useState, type FormEvent } from "react";
-import type {
-    CategoryCreateType,
-    CategoryType
-} from "../types/CategoryType";
+import { useForm } from "react-hook-form";
+import { flattenCategories } from "../utils/categories";
+import { toSlug } from "../utils/slug";
+import type { CategoryType } from "../types/CategoryType";
 import { createCategory } from "../services/categoryService";
 
 type CategoryFormProps = {
-    onCategoryCreated: (category: CategoryType) => void;
+    categories: CategoryType[];
+    onCategoryCreated: () => void;
 };
 
-function CategoryForm({ onCategoryCreated }: CategoryFormProps) {
-    const [name, setName] = useState("");
-    const [slug, setSlug] = useState("");
-    const [url, setUrl] = useState("");
-    const [isActive, setIsActive] = useState(true);
-    const [parentId, setParentId] = useState("");
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState("");
+type CategoryFormValues = {
+    name: string;
+    slug: string;
+    parentId: string;
+    image: FileList;
+};
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+function CategoryForm({ categories, onCategoryCreated }: CategoryFormProps) {
+    const parentOptions = flattenCategories(categories);
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setError,
+        formState: { errors, isSubmitting }
+    } = useForm<CategoryFormValues>({
+        defaultValues: {
+            name: "",
+            slug: "",
+            parentId: ""
+        }
+    });
 
-        setMessage("");
-        setError("");
-
-        const category: CategoryCreateType = {
-            name: name,
-            slug: slug,
-            url: url,
-            isActive: isActive,
-            parentId: parentId === "" ? null : Number(parentId)
-        };
+    const onSubmit = async (values: CategoryFormValues) => {
+        const categorySlug = toSlug(values.slug || values.name);
 
         try {
-            const createdCategory = await createCategory(category);
+            await createCategory({
+                name: values.name.trim(),
+                slug: categorySlug,
+                url: "",
+                parentId: values.parentId === "" ? null : Number(values.parentId),
+                image: values.image?.[0] ?? null
+            });
 
-            onCategoryCreated(createdCategory);
-
-            setName("");
-            setSlug("");
-            setUrl("");
-            setIsActive(true);
-            setParentId("");
-            setMessage("Категорію успішно створено");
-        } catch {
-            setError("Не вдалося створити категорію");
+            reset();
+            onCategoryCreated();
+        } catch (caught) {
+            setError("root", {
+                message: caught instanceof Error
+                    ? caught.message
+                    : "Не вдалося створити категорію. Увійдіть і спробуйте ще раз."
+            });
         }
     };
 
     return (
-        <form className="category-form" onSubmit={handleSubmit}>
-            <h2>Додати категорію</h2>
+        <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <h2>Нова категорія</h2>
 
             <label>
-                Назва категорії
+                Назва
                 <input
                     type="text"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                    maxLength={100}
+                    maxLength={20}
+                    {...register("name", {
+                        required: "Назва категорії обов'язкова",
+                        maxLength: {
+                            value: 20,
+                            message: "Назва не може бути довшою за 20 символів"
+                        }
+                    })}
                 />
             </label>
+            {errors.name && <p className="field-error">{errors.name.message}</p>}
 
             <label>
                 Slug
                 <input
                     type="text"
-                    value={slug}
-                    onChange={(event) => setSlug(event.target.value)}
-                    required
                     maxLength={100}
+                    placeholder="латиниця, від 5 символів"
+                    {...register("slug", {
+                        validate: (slug, formValues) => {
+                            const value = toSlug(slug || formValues.name);
+
+                            if (value.length < 5) {
+                                return "Slug має містити щонайменше 5 латинських символів";
+                            }
+
+                            if (!/^[a-z0-9_-]+$/.test(value)) {
+                                return "Slug повинен містити лише латинські літери, цифри та символи - та _";
+                            }
+
+                            return true;
+                        }
+                    })}
                 />
+            </label>
+            {errors.slug && <p className="field-error">{errors.slug.message}</p>}
+
+            <label>
+                Батьківська категорія
+                <select {...register("parentId")}>
+                    <option value="">Без батьківської</option>
+                    {parentOptions.map((category) => (
+                        <option key={category.id} value={category.id}>
+                            {category.name}
+                        </option>
+                    ))}
+                </select>
             </label>
 
             <label>
-                URL
+                Зображення
                 <input
-                    type="text"
-                    value={url}
-                    onChange={(event) => setUrl(event.target.value)}
+                    type="file"
+                    accept="image/*"
+                    {...register("image")}
                 />
             </label>
 
-            <label>
-                Parent ID
-                <input
-                    type="number"
-                    value={parentId}
-                    onChange={(event) => setParentId(event.target.value)}
-                />
-            </label>
-
-            <label className="checkbox-label">
-                <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(event) => setIsActive(event.target.checked)}
-                />
-                Активна категорія
-            </label>
-
-            <button type="submit">
-                Додати категорію
+            <button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Збереження..." : "Зберегти"}
             </button>
 
-            {message && <p className="success-message">{message}</p>}
-            {error && <p className="error-message">{error}</p>}
+            {errors.root && <p className="error-message">{errors.root.message}</p>}
         </form>
     );
 }

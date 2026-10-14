@@ -33,8 +33,12 @@ function RegisterForm({ onSuccess }: RegisterFormPropsType) {
             setRepeatPassword("");
             setMessage("Реєстрація успішна");
             onSuccess?.();
-        } catch {
-            setError("Не вдалося зареєструвати користувача");
+        } catch (caught) {
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Не вдалося зареєструвати користувача"
+            );
         }
     };
 
@@ -62,7 +66,7 @@ function RegisterForm({ onSuccess }: RegisterFormPropsType) {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     required
-                    minLength={5}
+                    minLength={6}
                 />
             </label>
 
@@ -74,7 +78,7 @@ function RegisterForm({ onSuccess }: RegisterFormPropsType) {
                     value={repeatPassword}
                     onChange={(event) => setRepeatPassword(event.target.value)}
                     required
-                    minLength={5}
+                    minLength={6}
                 />
             </label>
 

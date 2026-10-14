@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import ProductCard from "./components/ProductCard";
-import Search from "./components/Search";
 import Category from "./components/Category";
 import CategoryForm from "./components/CategoryForm";
-import CategoryProducts from "./components/CategoryProducts";
+import ProductForm from "./components/ProductForm";
+import ProductDetails from "./components/ProductDetails";
 import Header from "./components/Header";
+import Modal from "./components/Modal";
 import { AuthProvider } from "./context/AuthContext";
 import { ProductProvider } from "./context/ProductContext";
 import { useProductContext } from "./context/useProductContext";
+import { useAuthContext } from "./context/useAuthContext";
 import { getCategories } from "./services/categoryService";
+import { deleteProduct, getProductsByCategory } from "./services/productService";
+import { collectCategoryIds } from "./utils/categories";
 import type { CartItemType } from "./types/CartItemType";
 import type { CategoryType } from "./types/CategoryType";
 import type { CategoryProductType } from "./types/CategoryProductType";
@@ -19,8 +23,11 @@ function AppContent() {
     products,
     foundProducts,
     hasSearched,
-    productError
+    productError,
+    clearSearch,
+    reloadProducts
   } = useProductContext();
+  const { isAuthenticated } = useAuthContext();
 
   const [favorites, setFavorites] = useState<CategoryProductType[]>(() => {
     const favoritesFromStorage = localStorage.getItem("favorites");
@@ -41,25 +48,16 @@ function AppContent() {
     return [];
   });
   const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [selectedCategoryProducts, setSelectedCategoryProducts] = useState<
-      CategoryProductType[]
-  >([]);
-  const [selectedCategoryName, setSelectedCategoryName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
+  const [categoryProducts, setCategoryProducts] = useState<CategoryProductType[]>([]);
   const [categoryError, setCategoryError] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const categoriesPerPage = 6;
-  const totalPages = Math.ceil(categories.length / categoriesPerPage);
-  const activePage =
-      totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
-
-  const firstCategoryIndex = (activePage - 1) * categoriesPerPage;
-  const lastCategoryIndex = firstCategoryIndex + categoriesPerPage;
-
-  const currentCategories = categories.slice(
-      firstCategoryIndex,
-      lastCategoryIndex
-  );
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<CategoryProductType | null>(null);
+  const [openedProductId, setOpenedProductId] = useState<number | null>(null);
+  const [productActionError, setProductActionError] = useState("");
 
   useEffect(() => {
     localStorage.setItem("favorites", JSON.stringify(favorites));
@@ -69,16 +67,17 @@ function AppContent() {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const loadedCategories = await getCategories();
-        setCategories(loadedCategories);
-      } catch {
-        setCategoryError("Не вдалося завантажити категорії");
-      }
-    };
+  const loadCategories = async () => {
+    try {
+      const loadedCategories = await getCategories();
+      setCategories(loadedCategories);
+      setCategoryError("");
+    } catch {
+      setCategoryError("Не вдалося завантажити категорії");
+    }
+  };
 
+  useEffect(() => {
     loadCategories();
   }, []);
 
@@ -111,155 +110,328 @@ function AppContent() {
     }
   };
 
+  const decreaseCartItem = (productId: number) => {
+    setCart((items) => items.flatMap((item) => {
+      if (item.product.id !== productId) {
+        return [item];
+      }
+
+      if (item.quantity <= 1) {
+        return [];
+      }
+
+      return [{
+        ...item,
+        quantity: item.quantity - 1
+      }];
+    }));
+  };
+
   const toggleFavorite = (product: CategoryProductType) => {
     const foundProduct = favorites.find(
         (item) => item.id === product.id
     );
 
     if (foundProduct) {
-      const updatedFavorites = favorites.filter(
-          (item) => item.id !== product.id
-      );
-
-      setFavorites(updatedFavorites);
+      setFavorites(favorites.filter((item) => item.id !== product.id));
     } else {
       setFavorites([...favorites, product]);
     }
   };
 
-  const addCategoryToList = (category: CategoryType) => {
-    setCategories([
-      ...categories,
-      {
-        ...category,
-        subCategories: category.subCategories || []
+  const selectCategory = async (category: CategoryType) => {
+    clearSearch();
+    setSelectedCategory(category);
+
+    const ids = collectCategoryIds(category);
+
+    try {
+      const lists = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await getProductsByCategory(id);
+            } catch {
+              return [];
+            }
+          })
+      );
+
+      const fromApi = [
+        ...new Map(
+            lists.flat().map((product) => [product.id, product])
+        ).values()
+      ];
+
+      if (fromApi.length > 0) {
+        setCategoryProducts(fromApi);
+        return;
       }
-    ]);
-  };
+    } catch {
+      // локальна фільтрація, якщо endpoint не відповів
+    }
 
-  const selectCategory = (category: CategoryType) => {
-    const selectedProducts = products.filter(
-        (product) => product.categoryId === category.id
+    setCategoryProducts(
+        products.filter((product) => ids.includes(product.categoryId))
     );
-
-    setSelectedCategoryName(category.name);
-    setSelectedCategoryProducts(selectedProducts);
   };
+
+  const refreshProducts = async () => {
+    await reloadProducts();
+
+    if (selectedCategory) {
+      await selectCategory(selectedCategory);
+    }
+  };
+
+  const removeProduct = async (product: CategoryProductType) => {
+    const confirmed = window.confirm(`Видалити «${product.name}»?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteProduct(product.id);
+      setCart((items) => items.filter((item) => item.product.id !== product.id));
+      setFavorites((items) => items.filter((item) => item.id !== product.id));
+      setOpenedProductId(null);
+      setIsProductFormOpen(false);
+      setProductActionError("");
+      await refreshProducts();
+    } catch (caught) {
+      setProductActionError(
+          caught instanceof Error
+              ? caught.message
+              : "Не вдалося видалити товар"
+      );
+    }
+  };
+
+  const showAllProducts = () => {
+    clearSearch();
+    setSelectedCategory(null);
+    setCategoryProducts([]);
+  };
+
+  const displayedProducts = hasSearched
+      ? foundProducts
+      : selectedCategory
+        ? categoryProducts
+        : products;
+
+  const catalogTitle = hasSearched
+      ? "Результати пошуку"
+      : selectedCategory
+        ? selectedCategory.name
+        : "Усі товари";
+
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-      <div className="app">
-        <Header />
+      <div className="page">
+        <Header
+            favoritesCount={favorites.length}
+            cartCount={cartCount}
+            onOpenFavorites={() => setIsFavoritesOpen(true)}
+            onOpenCart={() => setIsCartOpen(true)}
+            onOpenCategoryForm={
+              isAuthenticated
+                  ? () => setIsCategoryFormOpen(true)
+                  : undefined
+            }
+            onOpenProductForm={
+              isAuthenticated
+                  ? () => {
+                    setEditingProduct(null);
+                    setIsProductFormOpen(true);
+                  }
+                  : undefined
+            }
+        />
 
-        <Search />
+        <main className="page-body">
+          <aside className="catalog">
+            <div className="catalog-head">
+              <h2>Каталог</h2>
+              <button
+                  className="text-button"
+                  type="button"
+                  onClick={showAllProducts}
+              >
+                Усі товари
+              </button>
+            </div>
 
-        <div className="top-info">
-          <p>Улюблені товари: {favorites.length}</p>
-          <p>
-            Кошик: {cart.reduce((sum, item) => sum + item.quantity, 0)}
-          </p>
-        </div>
+            {categoryError && (
+                <p className="error-message">{categoryError}</p>
+            )}
 
-        {productError && (
-            <p className="error-message">
-              {productError}
-            </p>
-        )}
+            {categories.length === 0 && !categoryError && (
+                <p className="catalog-empty">Категорій ще немає</p>
+            )}
 
-        {hasSearched && foundProducts.length === 0 && (
-            <p className="empty-message">
-              Нічого не знайдено
-            </p>
-        )}
+            <div className="catalog-list">
+              {categories.map((category) => (
+                  <Category
+                      key={category.id}
+                      category={category}
+                      selectedId={selectedCategory?.id ?? null}
+                      onSelectCategory={selectCategory}
+                  />
+              ))}
+            </div>
+          </aside>
 
-        {hasSearched && foundProducts.length > 0 && (
-            <section className="search-results">
-              <h2>Результати пошуку</h2>
-
-              <div className="products-list">
-                {foundProducts.map((product) => (
-                    <ProductCard
-                        key={product.id}
-                        product={product}
-                        onAddToCart={addToCart}
-                        onToggleFavorite={toggleFavorite}
-                        isFavorite={favorites.some(
-                            (item) => item.id === product.id
-                        )}
-                    />
-                ))}
+          <section className="showcase">
+            <div className="showcase-head">
+              <div>
+                <p className="eyebrow">Aura shop</p>
+                <h2>{catalogTitle}</h2>
               </div>
-            </section>
-        )}
-
-        <section className="categories-section">
-          <CategoryForm onCategoryCreated={addCategoryToList} />
-
-          <h2>Категорії</h2>
-
-          {categoryError && (
-              <p className="error-message">
-                {categoryError}
+              <p className="showcase-count">
+                {displayedProducts.length} товарів
               </p>
-          )}
+            </div>
 
-          <div className="categories-list">
-            {currentCategories.map((category) => (
-                <Category
-                    key={category.id}
-                    category={category}
-                    onSelectCategory={selectCategory}
-                />
-            ))}
+            {productError && (
+                <p className="error-message">{productError}</p>
+            )}
+
+            {productActionError && (
+                <p className="error-message">{productActionError}</p>
+            )}
+
+            {!productError && displayedProducts.length === 0 && (
+                <p className="empty-message">
+                  {hasSearched
+                      ? "Нічого не знайдено"
+                      : "У цій добірці поки немає товарів"}
+                </p>
+            )}
+
+            {displayedProducts.length > 0 && (
+                <div className="products-list">
+                  {displayedProducts.map((product) => (
+                      <ProductCard
+                          key={product.id}
+                          product={product}
+                          onAddToCart={addToCart}
+                          onToggleFavorite={toggleFavorite}
+                          onOpen={(item) => setOpenedProductId(item.id)}
+                          isFavorite={favorites.some(
+                              (item) => item.id === product.id
+                          )}
+                      />
+                  ))}
+                </div>
+            )}
+          </section>
+        </main>
+
+        <Modal
+            open={isCartOpen}
+            close={() => setIsCartOpen(false)}
+            wide
+        >
+          <div className="drawer">
+            <h2>Кошик</h2>
+            {cart.length === 0 ? (
+                <p className="empty-message">Кошик порожній</p>
+            ) : (
+                <ul className="drawer-list">
+                  {cart.map((item) => (
+                      <li key={item.product.id}>
+                        <span>{item.product.name}</span>
+                        <strong>
+                          {item.quantity} × {item.product.price} ₴
+                        </strong>
+                        <button
+                            className="cart-remove"
+                            type="button"
+                            onClick={() => decreaseCartItem(item.product.id)}
+                            aria-label="Зменшити кількість"
+                        >
+                          −
+                        </button>
+                      </li>
+                  ))}
+                </ul>
+            )}
           </div>
+        </Modal>
 
-          {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                    className="pagination-button"
-                    onClick={() => setCurrentPage(activePage - 1)}
-                    disabled={activePage === 1}
-                >
-                  Попередня
-                </button>
+        <Modal
+            open={isFavoritesOpen}
+            close={() => setIsFavoritesOpen(false)}
+            wide
+        >
+          <div className="drawer">
+            <h2>Обране</h2>
+            {favorites.length === 0 ? (
+                <p className="empty-message">Поки нічого не збережено</p>
+            ) : (
+                <div className="products-list">
+                  {favorites.map((product) => (
+                      <ProductCard
+                          key={product.id}
+                          product={product}
+                          onAddToCart={addToCart}
+                          onToggleFavorite={toggleFavorite}
+                          onOpen={(item) => setOpenedProductId(item.id)}
+                          isFavorite={true}
+                      />
+                  ))}
+                </div>
+            )}
+          </div>
+        </Modal>
 
-                {Array.from({ length: totalPages }, (_, index) => {
-                  const pageNumber = index + 1;
-
-                  return (
-                      <button
-                          key={pageNumber}
-                          className={
-                            activePage === pageNumber
-                                ? "pagination-button active"
-                                : "pagination-button"
-                          }
-                          onClick={() => setCurrentPage(pageNumber)}
-                      >
-                        {pageNumber}
-                      </button>
-                  );
-                })}
-
-                <button
-                    className="pagination-button"
-                    onClick={() => setCurrentPage(activePage + 1)}
-                    disabled={activePage === totalPages}
-                >
-                  Наступна
-                </button>
-              </div>
-          )}
-
-          {selectedCategoryName && (
-              <CategoryProducts
-                  categoryName={selectedCategoryName}
-                  products={selectedCategoryProducts}
-                  onAddToCart={addToCart}
-                  onToggleFavorite={toggleFavorite}
-                  favorites={favorites}
+        <Modal
+            open={openedProductId !== null}
+            close={() => setOpenedProductId(null)}
+            wide
+        >
+          {openedProductId !== null && (
+              <ProductDetails
+                  productId={openedProductId}
+                  canManage={isAuthenticated}
+                  onEdit={(product) => {
+                    setEditingProduct(product);
+                    setOpenedProductId(null);
+                    setIsProductFormOpen(true);
+                  }}
+                  onDelete={removeProduct}
               />
           )}
-        </section>
+        </Modal>
+
+        <Modal
+            open={isProductFormOpen}
+            close={() => setIsProductFormOpen(false)}
+        >
+          <ProductForm
+              categories={categories}
+              product={editingProduct}
+              onSaved={() => {
+                setIsProductFormOpen(false);
+                setEditingProduct(null);
+                refreshProducts();
+              }}
+          />
+        </Modal>
+
+        <Modal
+            open={isCategoryFormOpen}
+            close={() => setIsCategoryFormOpen(false)}
+        >
+          <CategoryForm
+              categories={categories}
+              onCategoryCreated={() => {
+                loadCategories();
+                setIsCategoryFormOpen(false);
+              }}
+          />
+        </Modal>
       </div>
   );
 }
