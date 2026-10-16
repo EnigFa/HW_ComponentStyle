@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import "./App.css";
 import ProductCard from "./components/ProductCard";
 import Category from "./components/Category";
@@ -14,9 +15,16 @@ import { useAuthContext } from "./context/useAuthContext";
 import { getCategories } from "./services/categoryService";
 import { deleteProduct, getProductsByCategory } from "./services/productService";
 import { collectCategoryIds } from "./utils/categories";
-import type { CartItemType } from "./types/CartItemType";
 import type { CategoryType } from "./types/CategoryType";
 import type { CategoryProductType } from "./types/CategoryProductType";
+import {
+    addToCart,
+    clearCart,
+    decreaseQuantity,
+    increaseQuantity,
+    removeFromCart
+} from "./store/cartSlice";
+import type { AppDispatch, RootState } from "./store/store";
 
 function AppContent() {
   const {
@@ -28,21 +36,14 @@ function AppContent() {
     reloadProducts
   } = useProductContext();
   const { isAuthenticated } = useAuthContext();
+  const dispatch = useDispatch<AppDispatch>();
+  const cart = useSelector((state: RootState) => state.cart);
 
   const [favorites, setFavorites] = useState<CategoryProductType[]>(() => {
     const favoritesFromStorage = localStorage.getItem("favorites");
 
     if (favoritesFromStorage) {
       return JSON.parse(favoritesFromStorage);
-    }
-
-    return [];
-  });
-  const [cart, setCart] = useState<CartItemType[]>(() => {
-    const cartFromStorage = localStorage.getItem("cart");
-
-    if (cartFromStorage) {
-      return JSON.parse(cartFromStorage);
     }
 
     return [];
@@ -63,10 +64,6 @@ function AppContent() {
     localStorage.setItem("favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
-
   const loadCategories = async () => {
     try {
       const loadedCategories = await getCategories();
@@ -80,52 +77,6 @@ function AppContent() {
   useEffect(() => {
     loadCategories();
   }, []);
-
-  const addToCart = (product: CategoryProductType) => {
-    const foundProduct = cart.find(
-        (item) => item.product.id === product.id
-    );
-
-    if (foundProduct) {
-      const updatedCart = cart.map((item) => {
-        if (item.product.id === product.id) {
-          return {
-            ...item,
-            quantity: item.quantity + 1
-          };
-        }
-
-        return item;
-      });
-
-      setCart(updatedCart);
-    } else {
-      setCart([
-        ...cart,
-        {
-          product: product,
-          quantity: 1
-        }
-      ]);
-    }
-  };
-
-  const decreaseCartItem = (productId: number) => {
-    setCart((items) => items.flatMap((item) => {
-      if (item.product.id !== productId) {
-        return [item];
-      }
-
-      if (item.quantity <= 1) {
-        return [];
-      }
-
-      return [{
-        ...item,
-        quantity: item.quantity - 1
-      }];
-    }));
-  };
 
   const toggleFavorite = (product: CategoryProductType) => {
     const foundProduct = favorites.find(
@@ -192,7 +143,7 @@ function AppContent() {
 
     try {
       await deleteProduct(product.id);
-      setCart((items) => items.filter((item) => item.product.id !== product.id));
+      dispatch(removeFromCart(product.id));
       setFavorites((items) => items.filter((item) => item.id !== product.id));
       setOpenedProductId(null);
       setIsProductFormOpen(false);
@@ -315,7 +266,7 @@ function AppContent() {
                       <ProductCard
                           key={product.id}
                           product={product}
-                          onAddToCart={addToCart}
+                          onAddToCart={(product) => dispatch(addToCart(product))}
                           onToggleFavorite={toggleFavorite}
                           onOpen={(item) => setOpenedProductId(item.id)}
                           isFavorite={favorites.some(
@@ -338,24 +289,50 @@ function AppContent() {
             {cart.length === 0 ? (
                 <p className="empty-message">Кошик порожній</p>
             ) : (
-                <ul className="drawer-list">
-                  {cart.map((item) => (
-                      <li key={item.product.id}>
-                        <span>{item.product.name}</span>
-                        <strong>
-                          {item.quantity} × {item.product.price} ₴
-                        </strong>
-                        <button
-                            className="cart-remove"
-                            type="button"
-                            onClick={() => decreaseCartItem(item.product.id)}
-                            aria-label="Зменшити кількість"
-                        >
-                          −
-                        </button>
-                      </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="drawer-list">
+                    {cart.map((item) => (
+                        <li key={item.product.id}>
+                          <span>{item.product.name}</span>
+                          <strong>
+                            {item.quantity} × {item.product.price} ₴
+                          </strong>
+                          <div className="cart-controls">
+                            <button
+                                className="cart-remove"
+                                type="button"
+                                onClick={() => dispatch(decreaseQuantity(item.product.id))}
+                                aria-label="Зменшити кількість"
+                            >
+                              −
+                            </button>
+                            <button
+                                className="cart-increase"
+                                type="button"
+                                onClick={() => dispatch(increaseQuantity(item.product.id))}
+                                aria-label="Збільшити кількість"
+                            >
+                              +
+                            </button>
+                            <button
+                                className="text-button"
+                                type="button"
+                                onClick={() => dispatch(removeFromCart(item.product.id))}
+                            >
+                              Прибрати
+                            </button>
+                          </div>
+                        </li>
+                    ))}
+                  </ul>
+                  <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => dispatch(clearCart())}
+                  >
+                    Очистити кошик
+                  </button>
+                </>
             )}
           </div>
         </Modal>
@@ -375,7 +352,7 @@ function AppContent() {
                       <ProductCard
                           key={product.id}
                           product={product}
-                          onAddToCart={addToCart}
+                          onAddToCart={(product) => dispatch(addToCart(product))}
                           onToggleFavorite={toggleFavorite}
                           onOpen={(item) => setOpenedProductId(item.id)}
                           isFavorite={true}

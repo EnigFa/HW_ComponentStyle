@@ -602,16 +602,31 @@ select {
   border-bottom: 1px solid #eadccc;
 }
 
-.cart-remove {
+.cart-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-remove,
+.cart-increase {
   width: 32px;
   height: 32px;
   border: 0;
   border-radius: 50%;
-  background: #f8e8e4;
-  color: #b42318;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
+}
+
+.cart-remove {
+  background: #f8e8e4;
+  color: #b42318;
+}
+
+.cart-increase {
+  background: #1a1512;
+  color: white;
 }
 
 .empty-message,
